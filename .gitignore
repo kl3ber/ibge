@@ -1,9 +1,9 @@
-data-raw/*
+data-raw/
+!data-raw
 .Rproj.user
 
 *.xls
 *.xlsx
 *.zip
 *.rar
-
 ibge\.Rproj
