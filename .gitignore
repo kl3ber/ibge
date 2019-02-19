@@ -3,8 +3,6 @@
 \.RData
 
 data-raw/
-!data-raw/.gitkeep
-!tests/samples.csv
 
 *.csv
 *.xls
@@ -12,7 +10,4 @@ data-raw/
 *.zip
 *.rar
 
-
-
-
-
+!*/tests/samples.csv
