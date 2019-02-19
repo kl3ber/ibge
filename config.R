@@ -28,7 +28,7 @@ uf = data.frame(rbind(
   c(25, 'MT', 'MATO GROSSO'),
   c(26, 'GO', 'GOAIS'),
   c(27, 'DF', 'DISTRITO FEDERAL')
-))
+), stringsAsFactors=FALSE)
 colnames(uf) = c('ID_UF', 'UF', 'ESTADO')
-
+uf$ID_UF = sapply(uf$ID_UF, as.integer)
 

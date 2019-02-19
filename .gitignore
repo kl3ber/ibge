@@ -1,5 +1,4 @@
 data-raw/
-!data-raw
 .Rproj.user
 
 *.xls
@@ -7,3 +6,9 @@ data-raw/
 *.zip
 *.rar
 ibge\.Rproj
+
+\.Rhistory
+
+\.RData
+
+*.csv
