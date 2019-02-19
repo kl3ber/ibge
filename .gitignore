@@ -1,14 +1,19 @@
-data-raw/
 .Rproj.user
+\.Rhistory
+\.RData
 
+data-raw/
+!data-raw/.gitkeep
+
+!tests
+
+*.csv
 *.xls
 *.xlsx
 *.zip
 *.rar
-ibge\.Rproj
 
-\.Rhistory
 
-\.RData
 
-*.csv
+
+

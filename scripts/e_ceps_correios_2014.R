@@ -10,4 +10,4 @@ ceps = read.csv('data/ceps_correios/consulta.cep.correios.gpbe.2014.txt',
 
 ceps$CIDADE = toupper(iconv(ceps$CIDADE, to='ASCII//TRANSLIT'))
 write.csv(ceps, file='data/extract/ceps_correios.csv', row.names=F)
-
+remove(ceps)
