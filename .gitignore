@@ -2,9 +2,9 @@
 \.Rhistory
 \.RData
 
+data/*csv
 data-raw/
 
-*.csv
 *.xls
 *.xlsx
 *.zip
