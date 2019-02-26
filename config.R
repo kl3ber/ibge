@@ -33,13 +33,15 @@ colnames(uf) = c('ID_UF', 'UF', 'ESTADO')
 uf$ID_UF = sapply(uf$ID_UF, as.integer)
 
 
+
 ### Indicadores à serem processados
 indicadores = c('1_1', '1_2', '2_1', '4_3', '5_1', '7_1', '7_2')
 
 
+
 ### Processamento dos arquivos do ibge
 processar_ibge = function(indicador) {
-  source(paste('scripts/e_ibge_indicador_', indicador, '.R', sep=''), encoding='UTF-8')
+  source(paste('scripts/t_ibge_indicador_', indicador, '.R', sep=''), encoding='UTF-8')
   FINAL = data.frame(matrix(NA, nrow = 1, ncol = 0))
   
   for (i in seq(1, nrow(uf))) {
@@ -49,7 +51,6 @@ processar_ibge = function(indicador) {
     for (j in seq(2,5)) {ceps[, paste('CIDADE', j, sep='_')] = NULL}
     remove(j)
     
-
     # Filtrar seções
     primeira_secao = c('Mesorregiões')
     segunda_secao = c('Microrregiões')
@@ -65,36 +66,55 @@ processar_ibge = function(indicador) {
     if (is.na(linha_corte) == F) {ceps = ceps[1:linha_corte,]}
     remove(primeira_secao, segunda_secao, terceira_secao, quarta_secao, linha_corte)
     
-
     # Tratamento e ordenação das colunas
     ceps = na.omit(ceps)
     ceps$UF = estado
     ceps = ceps[, c((ncol(ceps) - 1):ncol(ceps), rep(1:(ncol(ceps) - 2)))]
     ceps$CIDADE = toupper(iconv(ceps$CIDADE, from='UTF-8' , to='ASCII//TRANSLIT'))
     
-    
-    # Cidades que possuem código de IBGE de 7 digitos, porém não possuem um com 9 digitos
-    add_excessoes = mapply(setdiff, 
-                           ceps[nchar(ceps$COD_IBGE) == 7, c('CIDADE')], 
-                           ceps[nchar(ceps$COD_IBGE) == 9, c('CIDADE')])
-    
- 
-    teste = ceps[ceps$CIDADE %in% add_excessoes, ]
-    ceps = ceps[nchar(ceps$COD_IBGE) == 9, ]
-    ceps = rbind(ceps, teste)
-    
+    if (i == 20) {ceps = rbind(ceps[nchar(ceps$COD_IBGE) == 9, ], ceps[ceps$CIDADE == 'SAO PAULO',])} 
+    else {ceps = ceps[nchar(ceps$COD_IBGE) == 9, ]}
   
     # Tratamento dos valores numéricos
     ceps[,4:ncol(ceps)] = apply(ceps[,4:ncol(ceps)], 2, function(x) gsub("-", 0, x))
     ceps[,4:ncol(ceps)] = apply(ceps[,4:ncol(ceps)], 2, function(x) gsub("x", 0, x))
-    ceps[,4:ncol(ceps)] = sapply(ceps[,4:ncol(ceps)], as.integer)
+    ceps[,4:ncol(ceps)] = apply(as.matrix(ceps[,4:ncol(ceps)]), 2, as.integer)
     
     FINAL = rbind(FINAL, ceps)
   }
   
   FINAL = FINAL[, col_final]
-  write.csv(FINAL, file=paste('data/processed/e_ibge_indicador_', indicador, '.csv',sep=''), row.names=F)
+  write.csv(FINAL, file=paste('data/transform/t_ibge_indicador_', indicador, '.csv',sep=''), row.names=F)
   remove(estado, arquivo, ceps)
 }
 
+
+
+
+### Pesquisar CEPs nos arquivos processados do IBGE
+pesquisar_ceps = function(indicador) {
+  ceps = read.csv('data/extract/ceps_correios.csv', colClasses=c("numeric",rep("character",4)))
+  ibge = read.csv(paste('data/extract/e_ibge_indicador_', indicador,'.csv', sep=''), stringsAsFactors = F)
+  INDICADOR = merge(x=ceps, y=ibge, by=c('UF', 'CIDADE'), all.x = T)
+  remove(ceps, ibge)
+  
+  sample = read.csv('tests/sample.csv', stringsAsFactors = F, col.names=c('CEP', 'UF', 'CIDADE'))
+  sample$cep_char = sapply(sample, nchar)[,'CEP']
+  sample[sample$cep_char < 7, 'CEP'] = '0'
+  sample[sample$cep_char == 7, 'CEP'] = paste('0', sample[sample$cep_char == 7, 'CEP'], sep='')
+  sample$cep_char = NULL
+  
+  for (i in seq(nrow(sample))) {
+    cep = sample$CEP[i]
+    id_cidade = INDICADOR$ID_CIDADE[which(cep >= INDICADOR$CEP_INICIO & cep <= INDICADOR$CEP_FINAL)]
+    if (length(id_cidade) == 0) {id_cidade = 0}
+    sample$ID_CIDADE[i] = id_cidade
+  }
+  
+  INDICADOR = INDICADOR[,c(3,6, 7:ncol(INDICADOR))]
+  FINAL = merge(x=sample, y=INDICADOR, by='ID_CIDADE', all.x = T)
+  
+  arquivo = paste('data/output/',  gsub('\\D+','', Sys.time()), '_indicador_', indicador, '.csv', sep='')
+  write.csv(FINAL, arquivo, row.names = F)
+}
 

@@ -3,7 +3,7 @@
 \.RData
 
 data/output/*csv
-data/processed/*csv
+data/transform/*csv
 data-raw/
 
 *.xls
@@ -11,5 +11,4 @@ data-raw/
 *.zip
 *.rar
 
-!tests/samples.csv
 !data-raw/*gitkeep
