@@ -11,3 +11,6 @@ data-raw/
 *.rar
 
 !*/tests/samples.csv
+data/output/
+
+data/processed/

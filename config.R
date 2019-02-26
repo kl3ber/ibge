@@ -38,49 +38,62 @@ indicadores = c('1_1', '1_2', '2_1', '4_3', '5_1', '7_1', '7_2')
 
 
 ### Processamento dos arquivos do ibge
-processar_ibge = function(indicador){
+processar_ibge = function(indicador) {
   source(paste('scripts/e_ibge_indicador_', indicador, '.R', sep=''), encoding='UTF-8')
   FINAL = data.frame(matrix(NA, nrow = 1, ncol = 0))
   
   for (i in seq(1, nrow(uf))) {
     estado = uf[uf$ID_UF == i, 'UF']
-    arquivo = paste('data/ibge/Tabela 4', i, gsub('_', '.', indicador), 'xls', sep='.')
+    arquivo = paste('data/input/ibge/Tabela 4', i, gsub('_', '.', indicador), 'xls', sep='.')
     ceps = read_xls(arquivo, col_names = col)
-    for (j in seq(2,5)){ceps[, paste('CIDADE', j, sep='_')] = NULL}
+    for (j in seq(2,5)) {ceps[, paste('CIDADE', j, sep='_')] = NULL}
     remove(j)
     
 
-    # Filtrar apenas municípios
-    corte_superior = c('Municípios e Distritos', 'Municípios, Distritos e Subdistritos', 'Municípios')
-    corte_inferior = c('Municípios e Bairros')
+    # Filtrar seções
+    primeira_secao = c('Mesorregiões')
+    segunda_secao = c('Microrregiões')
+    terceira_secao = c('Municípios e Distritos', 'Municípios, Distritos e Subdistritos', 'Municípios')
+    quarta_secao = c('Municípios e Bairros')
 
-    linha_corte = match(corte_superior[1], ceps$CIDADE) + 1
-    if (is.na(linha_corte)) {linha_corte = match(corte_superior[2], ceps$CIDADE) + 1}
-    if (is.na(linha_corte)) {linha_corte = match(corte_superior[3], ceps$CIDADE) + 1}
+    linha_corte = match(terceira_secao[1], ceps$CIDADE) + 1
+    if (is.na(linha_corte)) {linha_corte = match(terceira_secao[2], ceps$CIDADE) + 1}
+    if (is.na(linha_corte)) {linha_corte = match(terceira_secao[3], ceps$CIDADE) + 1}
     ceps = ceps[linha_corte:nrow(ceps),]
 
-    linha_corte = match(corte_inferior[1], ceps$CIDADE) - 1
+    linha_corte = match(quarta_secao[1], ceps$CIDADE) - 1
     if (is.na(linha_corte) == F) {ceps = ceps[1:linha_corte,]}
-    remove(corte_superior, corte_inferior, linha_corte)
+    remove(primeira_secao, segunda_secao, terceira_secao, quarta_secao, linha_corte)
     
 
-    # Tratamento das colunas
+    # Tratamento e ordenação das colunas
     ceps = na.omit(ceps)
     ceps$UF = estado
     ceps = ceps[, c((ncol(ceps) - 1):ncol(ceps), rep(1:(ncol(ceps) - 2)))]
-    ceps = ceps[nchar(ceps$COD_IBGE) == 9, ]
+    ceps$CIDADE = toupper(iconv(ceps$CIDADE, from='UTF-8' , to='ASCII//TRANSLIT'))
     
+    
+    # Cidades que possuem código de IBGE de 7 digitos, porém não possuem um com 9 digitos
+    add_excessoes = mapply(setdiff, 
+                           ceps[nchar(ceps$COD_IBGE) == 7, c('CIDADE')], 
+                           ceps[nchar(ceps$COD_IBGE) == 9, c('CIDADE')])
+    
+ 
+    teste = ceps[ceps$CIDADE %in% add_excessoes, ]
+    ceps = ceps[nchar(ceps$COD_IBGE) == 9, ]
+    ceps = rbind(ceps, teste)
+    
+  
+    # Tratamento dos valores numéricos
     ceps[,4:ncol(ceps)] = apply(ceps[,4:ncol(ceps)], 2, function(x) gsub("-", 0, x))
     ceps[,4:ncol(ceps)] = apply(ceps[,4:ncol(ceps)], 2, function(x) gsub("x", 0, x))
     ceps[,4:ncol(ceps)] = sapply(ceps[,4:ncol(ceps)], as.integer)
-    
-    ceps$CIDADE = toupper(iconv(ceps$CIDADE, from='UTF-8' , to='ASCII//TRANSLIT'))
     
     FINAL = rbind(FINAL, ceps)
   }
   
   FINAL = FINAL[, col_final]
-  write.csv(FINAL, file=paste('data/extract/e_ibge_indicador_', indicador, '.csv',sep=''), row.names=F)
+  write.csv(FINAL, file=paste('data/processed/e_ibge_indicador_', indicador, '.csv',sep=''), row.names=F)
   remove(estado, arquivo, ceps)
 }
 
