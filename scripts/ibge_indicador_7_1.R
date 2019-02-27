@@ -12,7 +12,7 @@ col = c(
 )
 
 col_final = c(
-  'COD_IBGE', 'UF', 'CIDADE', 'Total',
+  'Total', 
   'meio', 'meio_1', '1_2', '2_5', '5_10', '10_20', '20_mais', 'sem_rendimento'
 )
 

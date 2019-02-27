@@ -14,7 +14,6 @@ col = c(
 )
 
 col_final = c(
-  'COD_IBGE', 'UF', 'CIDADE', 
   'Media_Total', 'Media_Urbano', 'Media_Rural'
 )
 

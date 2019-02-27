@@ -30,7 +30,7 @@ uf = data.frame(rbind(
   c(27, 'DF', 'DISTRITO FEDERAL')
 ), stringsAsFactors=FALSE)
 colnames(uf) = c('ID_UF', 'UF', 'ESTADO')
-uf$ID_UF = sapply(uf$ID_UF, as.integer)
+uf$ID_UF = apply(as.matrix(uf$ID_UF), 2, as.integer)
 
 
 
@@ -38,17 +38,20 @@ uf$ID_UF = sapply(uf$ID_UF, as.integer)
 indicadores = c('1_1', '1_2', '2_1', '4_3', '5_1', '7_1', '7_2')
 
 
+### Colunas finais comuns à todos os indicadores
+col_comuns = c('COD_IBGE', 'ID_CIDADE', 'UF', 'CIDADE', 'CEP_INICIO', 'CEP_FINAL')
+
 
 ### Processamento dos arquivos do ibge
 processar_ibge = function(indicador) {
-  source(paste('scripts/t_ibge_indicador_', indicador, '.R', sep=''), encoding='UTF-8')
+  source(paste('scripts/ibge_indicador_', indicador, '.R', sep=''), encoding='UTF-8')
   FINAL = data.frame(matrix(NA, nrow = 1, ncol = 0))
   
   for (i in seq(1, nrow(uf))) {
     estado = uf[uf$ID_UF == i, 'UF']
     arquivo = paste('data/input/ibge/Tabela 4', i, gsub('_', '.', indicador), 'xls', sep='.')
-    ceps = read_xls(arquivo, col_names = col)
-    for (j in seq(2,5)) {ceps[, paste('CIDADE', j, sep='_')] = NULL}
+    ibge = read_xls(arquivo, col_names = col)
+    for (j in seq(2,5)) {ibge[, paste('CIDADE', j, sep='_')] = NULL}
     remove(j)
     
     # Filtrar seções
@@ -57,44 +60,57 @@ processar_ibge = function(indicador) {
     terceira_secao = c('Municípios e Distritos', 'Municípios, Distritos e Subdistritos', 'Municípios')
     quarta_secao = c('Municípios e Bairros')
 
-    linha_corte = match(terceira_secao[1], ceps$CIDADE) + 1
-    if (is.na(linha_corte)) {linha_corte = match(terceira_secao[2], ceps$CIDADE) + 1}
-    if (is.na(linha_corte)) {linha_corte = match(terceira_secao[3], ceps$CIDADE) + 1}
-    ceps = ceps[linha_corte:nrow(ceps),]
+    linha_corte = match(terceira_secao[1], ibge$CIDADE) + 1
+    if (is.na(linha_corte)) {linha_corte = match(terceira_secao[2], ibge$CIDADE) + 1}
+    if (is.na(linha_corte)) {linha_corte = match(terceira_secao[3], ibge$CIDADE) + 1}
+    ibge = ibge[linha_corte:nrow(ibge),]
 
-    linha_corte = match(quarta_secao[1], ceps$CIDADE) - 1
-    if (is.na(linha_corte) == F) {ceps = ceps[1:linha_corte,]}
+    linha_corte = match(quarta_secao[1], ibge$CIDADE) - 1
+    if (is.na(linha_corte) == F) {ibge = ibge[1:linha_corte,]}
     remove(primeira_secao, segunda_secao, terceira_secao, quarta_secao, linha_corte)
     
     # Tratamento e ordenação das colunas
-    ceps = na.omit(ceps)
-    ceps$UF = estado
-    ceps = ceps[, c((ncol(ceps) - 1):ncol(ceps), rep(1:(ncol(ceps) - 2)))]
-    ceps$CIDADE = toupper(iconv(ceps$CIDADE, from='UTF-8' , to='ASCII//TRANSLIT'))
+    ibge = na.omit(ibge)
+    ibge$UF = estado
+    ibge = ibge[, c((ncol(ibge) - 1):ncol(ibge), rep(1:(ncol(ibge) - 2)))]
+    ibge$CIDADE = toupper(iconv(ibge$CIDADE, from='UTF-8' , to='ASCII//TRANSLIT'))
     
-    if (i == 20) {ceps = rbind(ceps[nchar(ceps$COD_IBGE) == 9, ], ceps[ceps$CIDADE == 'SAO PAULO',])} 
-    else {ceps = ceps[nchar(ceps$COD_IBGE) == 9, ]}
+    # Tratamento de excessões
+    if (i == 20) {
+      ibge[ibge$CIDADE == 'MOJI MIRIM', 'CIDADE'] = 'MOGI MIRIM'
+      ibge = rbind(ibge[nchar(ibge$COD_IBGE) == 9, ], ibge[ibge$CIDADE == 'SAO PAULO',])
+    } else if (i == 23) {
+      ibge[ibge$CIDADE == "SANT'ANA DO LIVRAMENTO", 'CIDADE'] = 'SANTANA DO LIVRAMENTO'
+      ibge = ibge[nchar(ibge$COD_IBGE) == 9, ]
+    } else {
+      ibge = ibge[nchar(ibge$COD_IBGE) == 9, ]
+    }
   
     # Tratamento dos valores numéricos
-    ceps[,4:ncol(ceps)] = apply(ceps[,4:ncol(ceps)], 2, function(x) gsub("-", 0, x))
-    ceps[,4:ncol(ceps)] = apply(ceps[,4:ncol(ceps)], 2, function(x) gsub("x", 0, x))
-    ceps[,4:ncol(ceps)] = apply(as.matrix(ceps[,4:ncol(ceps)]), 2, as.integer)
+    ibge[,4:ncol(ibge)] = apply(ibge[,4:ncol(ibge)], 2, function(x) gsub("-", 0, x))
+    ibge[,4:ncol(ibge)] = apply(ibge[,4:ncol(ibge)], 2, function(x) gsub("x", 0, x))
+    ibge[,4:ncol(ibge)] = apply(as.matrix(ibge[,4:ncol(ibge)]), 2, as.integer)
     
-    FINAL = rbind(FINAL, ceps)
+    FINAL = rbind(FINAL, ibge)
   }
   
-  FINAL = FINAL[, col_final]
-  write.csv(FINAL, file=paste('data/transform/t_ibge_indicador_', indicador, '.csv',sep=''), row.names=F)
-  remove(estado, arquivo, ceps)
+  # Cruzamento com a base de CEPs
+  ceps = read.csv('data/output/ceps_correios.csv', colClasses=c("numeric",rep("character",4)))
+  
+  FINAL = merge(x=ceps, y=FINAL, by=c('UF', 'CIDADE'), all.x = TRUE)
+  FINAL = FINAL[-which(FINAL$COD_IBGE %in% c('350945215','412380825')),]
+  FINAL = FINAL[, c(col_comuns, col_final)]
+  
+  write.csv(FINAL, file=paste('data/output/ibge_indicador_', indicador, '.csv',sep=''), row.names=F)
+  remove(estado, arquivo, ibge, ceps)
 }
-
 
 
 
 ### Pesquisar CEPs nos arquivos processados do IBGE
 pesquisar_ceps = function(indicador) {
-  ceps = read.csv('data/extract/ceps_correios.csv', colClasses=c("numeric",rep("character",4)))
-  ibge = read.csv(paste('data/extract/e_ibge_indicador_', indicador,'.csv', sep=''), stringsAsFactors = F)
+  ceps = read.csv('data/transform/t_ceps_correios.csv', colClasses=c("numeric",rep("character",4)))
+  ibge = read.csv(paste('data/transform/t_ibge_indicador_', indicador,'.csv', sep=''), stringsAsFactors = F)
   INDICADOR = merge(x=ceps, y=ibge, by=c('UF', 'CIDADE'), all.x = T)
   remove(ceps, ibge)
   

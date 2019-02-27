@@ -12,7 +12,6 @@ col = c(
 )
 
 col_final = c(
-  'COD_IBGE', 'UF', 'CIDADE',
   'Total', 'Branca', 'Preta', 'Amarela', 'Parda', 'Indigena', 'Sem_Declaracao' 
 )
 
