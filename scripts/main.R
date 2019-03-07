@@ -11,5 +11,5 @@ for (ind in indicadores) {
   processar_ibge(ind)
   print(paste(strftime(Sys.time(), '%H:%M:%S'), ind, sep = ' - '))
 }
-remove(uf, col, col_comuns, col_final, ind, processar_ibge)S
+remove(uf, col, col_comuns, col_final, ind, processar_ibge)
 
